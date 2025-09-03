@@ -19,8 +19,21 @@ package validator
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+
+	"github.com/apache/servicecomb-service-center/server/config"
 )
+
+type CustomValidator interface {
+	Validate(v interface{}) (bool, error)
+}
+
+var customValidators = map[string]CustomValidator{}
+
+func registerCustomValidator(name string, validator CustomValidator) {
+	customValidators[name] = validator
+}
 
 func baseCheck(v interface{}) error {
 	if v == nil {
@@ -31,4 +44,34 @@ func baseCheck(v interface{}) error {
 		return errors.New("pointer is nil")
 	}
 	return nil
+}
+
+// customValidate 自定义校验，校验器不存在或校验失败返回err
+// v: 待校验数据
+// targetValidators: 待使用的自定义校验器
+func customValidate(v interface{}, targetValidators ...string) error {
+	if !config.GetServer().EnableCustomValidate {
+		return nil
+	}
+	for _, validatorName := range targetValidators {
+		validator, exists := customValidators[validatorName]
+		if !exists {
+			return errors.New(fmt.Sprintf("validator:%s is not registered", validatorName))
+		}
+		validate, err := validator.Validate(v)
+		if err != nil {
+			return err
+		}
+		if !validate {
+			return errors.New(fmt.Sprintf("Validate failed,validator:%s", validatorName))
+		}
+	}
+	return nil
+}
+
+func initCustomValidator() {
+	if !config.GetServer().EnableCustomValidate {
+		return
+	}
+	initPasswordCustomValidator()
 }
