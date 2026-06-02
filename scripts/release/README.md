@@ -36,3 +36,10 @@ bash -x scripts/release/make_release.sh windows 2.0.0
 bash -x scripts/release/make_release.sh mac 2.0.0
 ```
 
+#### GitHub Release Binaries
+
+When a GitHub Release is published, the `Release Binaries` workflow builds
+the Linux, Windows and Mac amd64 packages and uploads them to the release.
+
+To backfill binary packages for an existing release, run the workflow manually
+and provide the release tag, for example `v2.3.0`.

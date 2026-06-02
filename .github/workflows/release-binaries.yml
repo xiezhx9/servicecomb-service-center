@@ -1,0 +1,56 @@
+name: Release Binaries
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build binaries for, for example v2.3.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and upload binary packages
+    runs-on: ubuntu-22.04
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend package manager
+        run: npm install -g bower
+
+      - name: Build release packages
+        run: |
+          version="${RELEASE_TAG#v}"
+          bash -x scripts/release/make_release.sh all "${version}"
+
+      - name: Upload packages to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          gh release upload "${RELEASE_TAG}" \
+            "apache-servicecomb-service-center-${version}-linux-amd64.tar.gz" \
+            "apache-servicecomb-service-center-${version}-windows-amd64.tar.gz" \
+            "apache-servicecomb-service-center-${version}-darwin-amd64.tar.gz" \
+            --clobber
